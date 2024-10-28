@@ -1,0 +1,7 @@
+{
+    "cmake.sourceDirectory": "E:/_DEV_/micropython/micropython/ports/esp32",
+    "files.associations": {
+        "*.asm": "platformio-debug.asm",
+        "xlocale": "c"
+    }
+}
