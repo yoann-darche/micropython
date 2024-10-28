@@ -116,6 +116,7 @@ static ledc_timer_config_t timers[PWM_TIMER_MAX];
 // Clock alias values (used by clock parameter)
 // PWM_LAST_CLK_IDX is not clock by a maker to identify outofindex values
 // PWM_AUTO_CLK is used in order to auto determinate the clock (no specific clock has been required)
+<<<<<<< HEAD
 enum { PWM_AUTO_CLK, PWM_APB_CLK, PWM_RC_FAST_CLK, PWM_REF_TICK, PWM_XTAL_CLK, PWM_PLL_CLK, _PWM_LAST_CLK_IDX };
 static const ledc_clk_cfg_t clk_source_map[] = {
     -2,
@@ -124,6 +125,11 @@ static const ledc_clk_cfg_t clk_source_map[] = {
     #else
     -1,
     #endif
+=======
+enum { PWM_APB_CLK, PWM_RC_FAST_CLK, PWM_REF_TICK, PWM_XTAL_CLK, PWM_AUTO_CLK, _PWM_LAST_CLK_IDX };
+static const ledc_clk_cfg_t clk_source_map[] = {
+    LEDC_USE_APB_CLK,
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
     LEDC_USE_RC_FAST_CLK, // LEDC_USE_RC_FAST_CLK == LEDC_USE_RTC8M_CLK
     #if SOC_LEDC_SUPPORT_REF_TICK
     LEDC_USE_REF_TICK,
@@ -131,6 +137,7 @@ static const ledc_clk_cfg_t clk_source_map[] = {
     -1,
     #endif
     #if SOC_LEDC_SUPPORT_XTAL_CLOCK
+<<<<<<< HEAD
     LEDC_USE_XTAL_CLK,
     #else
     -1,
@@ -151,6 +158,14 @@ static const ledc_clk_cfg_t clk_source_map[] = {
     { MP_ROM_QSTR(MP_QSTR_PWM_XTAL_CLK), MP_ROM_INT(PWM_XTAL_CLK) }, \
     { MP_ROM_QSTR(MP_QSTR_PWM_PLL_CLK), MP_ROM_INT(PWM_PLL_CLK) }, \
 
+=======
+    LEDC_USE_XTAL_CLK
+    #else
+    -1
+    #endif
+};
+
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
 // Config of timer upon which we run all PWM'ed GPIO pins
 static bool pwm_inited = false;
 
@@ -199,6 +214,19 @@ static void pwm_init(void) {
 static void pwm_deinit(int channel_idx) {
     // Valid channel?
     if ((channel_idx >= 0) && (channel_idx < PWM_CHANNEL_MAX)) {
+<<<<<<< HEAD
+=======
+        // Clean up timer if necessary
+        int timer_idx = chans[channel_idx].timer_idx;
+        if (timer_idx != -1) {
+            if (!is_timer_in_use(channel_idx, timer_idx)) {
+                check_esp_err(ledc_timer_rst(TIMER_IDX_TO_MODE(timer_idx), TIMER_IDX_TO_TIMER(timer_idx)));
+                // Flag it unused
+                timers[chans[channel_idx].timer_idx].freq_hz = -1;
+                timers[chans[channel_idx].timer_idx].clk_cfg = LEDC_AUTO_CLK;
+            }
+        }
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
 
         // Stop the channel
         int pin = chans[channel_idx].pin;
@@ -247,7 +275,11 @@ static void pwm_deinit(int channel_idx) {
         }
 
         chans[channel_idx].timer_idx = -1;
+<<<<<<< HEAD
 
+=======
+        chans[channel_idx].lightsleepenabled = false;
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
     }
 }
 
@@ -300,7 +332,10 @@ static void set_freq(machine_pwm_obj_t *self, unsigned int freq, ledc_timer_conf
         timer->duty_resolution = res;
         timer->freq_hz = freq;
         timer->clk_cfg = led_src_clock;
+<<<<<<< HEAD
         timer->deconfigure = false;
+=======
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
 
         // Set frequency
         esp_err_t err = ledc_timer_config(timer);
@@ -501,6 +536,7 @@ static int find_clock_in_use() {
         }
     }
 
+<<<<<<< HEAD
     return found_clk;
 }
 
@@ -520,6 +556,27 @@ static bool check_freq(machine_pwm_obj_t *self, int freq) {
     }
 
     return true;
+=======
+    if (found_clk == LEDC_AUTO_CLK) {
+        return PWM_AUTO_CLK;
+    } else if (found_clk == LEDC_USE_APB_CLK) {
+        return PWM_APB_CLK;
+    } else if (found_clk == LEDC_USE_RC_FAST_CLK) {
+        return PWM_RC_FAST_CLK;
+    }
+    #if SOC_LEDC_SUPPORT_REF_TICK
+    else if (found_clk == LEDC_USE_REF_TICK) {
+        return PWM_REF_TICK;
+    }
+    #endif
+    #if SOC_LEDC_SUPPORT_XTAL_CLOCK
+    else if (found_clk == LEDC_USE_XTAL_CLK) {
+        return PWM_XTAL_CLK;
+    }
+    #endif
+
+    return PWM_AUTO_CLK;
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
 }
 
 #endif
@@ -569,6 +626,7 @@ static void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
         mp_printf(print, ", mode=%d, channel=%d, timer=%d", self->mode, self->channel, self->timer);
 
         int clk_src = timers[TIMER_IDX(self->mode, self->timer)].clk_cfg;
+<<<<<<< HEAD
         if (clk_src == LEDC_USE_RC_FAST_CLK) {
             mp_printf(print, ", clock=PWM_RC_FAST_CLK(%d)", PWM_RC_FAST_CLK);
         }
@@ -577,6 +635,13 @@ static void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
             mp_printf(print, ", clock=PWM_APB_CLK(%d)", PWM_APB_CLK);
         }
         #endif
+=======
+        if (clk_src == LEDC_USE_APB_CLK) {
+            mp_printf(print, ", clock=PWM_APB_CLK(%d)", PWM_APB_CLK);
+        } else if (clk_src == LEDC_USE_RC_FAST_CLK) {
+            mp_printf(print, ", clock=PWM_RC_FAST_CLK(%d)", PWM_RC_FAST_CLK);
+        }
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
         #if SOC_LEDC_SUPPORT_XTAL_CLOCK
         else if (clk_src == LEDC_USE_XTAL_CLK) {
             mp_printf(print, ", clock=PWM_XTAL_CLK(%d)", PWM_XTAL_CLK);
@@ -587,11 +652,14 @@ static void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
             mp_printf(print, ", clock=PWM_REF_TICK(%d)", PWM_REF_TICK);
         }
         #endif
+<<<<<<< HEAD
         #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
         else if (clk_src == LEDC_USE_PLL_DIV_CLK) {
             mp_printf(print, ", clock=PWM_PLL_CLK(%d)", PWM_PLL_CLK);
         }
         #endif
+=======
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
         else {
             mp_printf(print, ", clock=UNKNOWN");
         }
@@ -658,6 +726,7 @@ static void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         if (pwm_clk != PWM_AUTO_CLK) {
             pwm_src_clock = pwm_clk;
         } else {
+<<<<<<< HEAD
             #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
             pwm_src_clock = PWM_PLL_CLK;
             #endif
@@ -676,6 +745,16 @@ static void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         #if SOC_LEDC_SUPPORT_REF_TICK
         if (freq < EMPIRIC_FREQ) {
             pwm_src_clock = PWM_REF_TICK;         // 1 MHz
+=======
+            pwm_src_clock = PWM_APB_CLK;
+        }
+        #else
+        pwm_src_clock = PWM_APB_CLK;
+
+        #if SOC_LEDC_SUPPORT_REF_TICK
+        if (freq < EMPIRIC_FREQ) {
+            pwm_src_clock = PWM_REF_TICK;     // 1 MHz
+>>>>>>> 85c3ec758 (esp32/machine_pwm: Add features light_sleep_enable and clock source.)
         }
         #endif
         #endif
