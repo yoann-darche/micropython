@@ -116,8 +116,9 @@ static ledc_timer_config_t timers[PWM_TIMER_MAX];
 // Clock alias values (used by clock parameter)
 // PWM_LAST_CLK_IDX is not clock by a maker to identify outofindex values
 // PWM_AUTO_CLK is used in order to auto determinate the clock (no specific clock has been required)
-enum { PWM_APB_CLK, PWM_RC_FAST_CLK, PWM_REF_TICK, PWM_XTAL_CLK, PWM_AUTO_CLK, _PWM_LAST_CLK_IDX };
+enum { PWM_AUTO_CLK, PWM_APB_CLK, PWM_RC_FAST_CLK, PWM_REF_TICK, PWM_XTAL_CLK, PWM_PLL_CLK, _PWM_LAST_CLK_IDX };
 static const ledc_clk_cfg_t clk_source_map[] = {
+    -2,
     LEDC_USE_APB_CLK,
     LEDC_USE_RC_FAST_CLK, // LEDC_USE_RC_FAST_CLK == LEDC_USE_RTC8M_CLK
     #if SOC_LEDC_SUPPORT_REF_TICK
@@ -126,9 +127,14 @@ static const ledc_clk_cfg_t clk_source_map[] = {
     -1,
     #endif
     #if SOC_LEDC_SUPPORT_XTAL_CLOCK
-    LEDC_USE_XTAL_CLK
+    LEDC_USE_XTAL_CLK,
     #else
-    -1
+    -1,
+    #endif
+    #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
+    LEDC_USE_PLL_DIV_CLK,
+    #else
+    -1,
     #endif
 };
 
@@ -489,6 +495,11 @@ static int find_clock_in_use() {
         return PWM_XTAL_CLK;
     }
     #endif
+    #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
+    else if (found_clk == LEDC_USE_PLL_DIV_CLK) {
+        return PWM_PLL_CLK;
+    }
+    #endif
 
     return PWM_AUTO_CLK;
 }
@@ -555,6 +566,11 @@ static void mp_machine_pwm_print(const mp_print_t *print, mp_obj_t self_in, mp_p
             mp_printf(print, ", clock=PWM_REF_TICK(%d)", PWM_REF_TICK);
         }
         #endif
+        #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
+        else if (clk_src == LEDC_USE_PLL_DIV_CLK) {
+            mp_printf(print, ", clock=PWM_PLL_CLK(%d)", PWM_PLL_CLK);
+        }
+        #endif        
         else {
             mp_printf(print, ", clock=UNKNOWN");
         }
@@ -621,16 +637,26 @@ static void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         if (pwm_clk != PWM_AUTO_CLK) {
             pwm_src_clock = pwm_clk;
         } else {
+            #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
+            pwm_src_clock = PWM_PLL_CLK;
+            #endif
+            #if SOC_LEDC_SUPPORT_APB_CLOCK
             pwm_src_clock = PWM_APB_CLK;
+            #endif
         }
         #else
-        pwm_src_clock = PWM_APB_CLK;
+            #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
+            pwm_src_clock = PWM_PLL_CLK;
+            #endif
+            #if SOC_LEDC_SUPPORT_APB_CLOCK
+            pwm_src_clock = PWM_APB_CLK;
+            #endif
 
-        #if SOC_LEDC_SUPPORT_REF_TICK
-        if (freq < EMPIRIC_FREQ) {
-            pwm_src_clock = PWM_REF_TICK;     // 1 MHz
-        }
-        #endif
+            #if SOC_LEDC_SUPPORT_REF_TICK
+            if (freq < EMPIRIC_FREQ) {
+                pwm_src_clock = PWM_REF_TICK;     // 1 MHz
+            }
+            #endif
         #endif
     }
     #if !(PWM_SUPPORT_INDEP_CLOCK_SRC)
