@@ -152,7 +152,10 @@ static const ledc_clk_cfg_t clk_source_map[] = {
     { MP_ROM_QSTR(MP_QSTR_PWM_XTAL_CLK), MP_ROM_INT(PWM_XTAL_CLK) }, \
     { MP_ROM_QSTR(MP_QSTR_PWM_PLL_CLK), MP_ROM_INT(PWM_PLL_CLK) }, \
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 51f170008 (esp32/machine_pwm: Add constants clock defintion.)
 // Config of timer upon which we run all PWM'ed GPIO pins
 static bool pwm_inited = false;
 
@@ -677,13 +680,6 @@ static void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
             pwm_src_clock = PWM_APB_CLK;
         }
         #else
-<<<<<<< HEAD
-        pwm_src_clock = PWM_APB_CLK;
-
-        #if SOC_LEDC_SUPPORT_REF_TICK
-        if (freq < EMPIRIC_FREQ) {
-            pwm_src_clock = PWM_REF_TICK;     // 1 MHz
-=======
         #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
         pwm_src_clock = PWM_PLL_CLK;
         #endif
@@ -694,7 +690,6 @@ static void mp_machine_pwm_init_helper(machine_pwm_obj_t *self,
         #if SOC_LEDC_SUPPORT_REF_TICK
         if (freq < EMPIRIC_FREQ) {
             pwm_src_clock = PWM_REF_TICK;         // 1 MHz
->>>>>>> 4bf685fe8 (esp32/machine_pwm: Codeformat update.)
         }
         #endif
         #endif
