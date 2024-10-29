@@ -142,6 +142,15 @@ static const ledc_clk_cfg_t clk_source_map[] = {
     #endif
 };
 
+// MicroPython bindings for ESP32-PWM
+#define MICROPY_PY_MACHINE_PWM_CLASS_CONSTANTS \
+    { MP_ROM_QSTR(MP_QSTR_PWM_AUTO_CLK), MP_ROM_INT(PWM_AUTO_CLK) }, \
+    { MP_ROM_QSTR(MP_QSTR_PWM_APB_CLK), MP_ROM_INT(PWM_APB_CLK) }, \
+    { MP_ROM_QSTR(MP_QSTR_PWM_RC_FAST_CLK), MP_ROM_INT(PWM_RC_FAST_CLK) }, \
+    { MP_ROM_QSTR(MP_QSTR_PWM_REF_TICK), MP_ROM_INT(PWM_REF_TICK) }, \
+    { MP_ROM_QSTR(MP_QSTR_PWM_XTAL_CLK), MP_ROM_INT(PWM_XTAL_CLK) }, \
+    { MP_ROM_QSTR(MP_QSTR_PWM_PLL_CLK), MP_ROM_INT(PWM_PLL_CLK) }, \
+
 // Config of timer upon which we run all PWM'ed GPIO pins
 static bool pwm_inited = false;
 
