@@ -134,6 +134,12 @@ static const mp_rom_map_elem_t machine_pwm_locals_dict_table[] = {
     #endif
     { MP_ROM_QSTR(MP_QSTR_duty_u16), MP_ROM_PTR(&machine_pwm_duty_u16_obj) },
     { MP_ROM_QSTR(MP_QSTR_duty_ns), MP_ROM_PTR(&machine_pwm_duty_ns_obj) },
+
+    // A port must add PWM class constants defining the following macro.
+    // It can be defined to nothing if there are no constants.
+    #ifdef MICROPY_PY_MACHINE_PWM_CLASS_CONSTANTS
+    MICROPY_PY_MACHINE_PWM_CLASS_CONSTANTS
+    #endif
 };
 static MP_DEFINE_CONST_DICT(machine_pwm_locals_dict, machine_pwm_locals_dict_table);
 
