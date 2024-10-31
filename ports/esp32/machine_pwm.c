@@ -204,16 +204,6 @@ static void pwm_init(void) {
 static void pwm_deinit(int channel_idx) {
     // Valid channel?
     if ((channel_idx >= 0) && (channel_idx < PWM_CHANNEL_MAX)) {
-        // Clean up timer if necessary
-        int timer_idx = chans[channel_idx].timer_idx;
-        if (timer_idx != -1) {
-            if (!is_timer_in_use(channel_idx, timer_idx)) {
-                check_esp_err(ledc_timer_rst(TIMER_IDX_TO_MODE(timer_idx), TIMER_IDX_TO_TIMER(timer_idx)));
-                // Flag it unused
-                timers[chans[channel_idx].timer_idx].freq_hz = -1;
-                timers[chans[channel_idx].timer_idx].clk_cfg = LEDC_AUTO_CLK;
-            }
-        }
 
         // Stop the channel
         int pin = chans[channel_idx].pin;
@@ -262,7 +252,7 @@ static void pwm_deinit(int channel_idx) {
         }
 
         chans[channel_idx].timer_idx = -1;
-        chans[channel_idx].lightsleepenabled = false;
+
     }
 }
 
@@ -302,8 +292,8 @@ static void set_freq(machine_pwm_obj_t *self, unsigned int freq, ledc_timer_conf
 
         uint32_t src_clock_freq;
 
-        if (esp_clk_tree_src_get_freq_hz(led_src_clock, ESP_CLK_TREE_SRC_FREQ_PRECISION_APPROX, &src_clock_freq) != ESP_OK) {
-            mp_raise_ValueError(MP_ERROR_TEXT("Error on getting reference clock frequency."));
+        if (esp_clk_tree_src_get_freq_hz(led_src_clock, ESP_CLK_TREE_SRC_FREQ_PRECISION_CACHED, &src_clock_freq) != ESP_OK) {
+            mp_raise_ValueError(MP_ERROR_TEXT("Error on getting reference clock frequency (FREQ_PRECISION_CACHED)."));
         }
 
         uint32_t res = ledc_find_suitable_duty_resolution(src_clock_freq, freq);
@@ -504,7 +494,7 @@ static int is_timer_with_different_clock(int current_timer_idx, ledc_clk_cfg_t r
     return false;
 }
 
-// This check if a clock is already set in the timer list, if yes, return the PWM_XXX_CLK value
+// This check if a clock is already set in the timer list, if yes, return the LEDC_XXX value
 static int find_clock_in_use() {
 
     ledc_clk_cfg_t found_clk = LEDC_AUTO_CLK;
@@ -516,32 +506,26 @@ static int find_clock_in_use() {
         }
     }
 
-    if (found_clk == LEDC_AUTO_CLK) {
-        return PWM_AUTO_CLK;
-    }
-    #if SOC_LEDC_SUPPORT_APB_CLOCK
-    else if (found_clk == LEDC_USE_APB_CLK) {
-        return PWM_APB_CLK;
-    }
-    #endif
-    else if (found_clk == LEDC_USE_RC_FAST_CLK) {
-        return PWM_RC_FAST_CLK;
-    }
-    #if SOC_LEDC_SUPPORT_REF_TICK
-    else if (found_clk == LEDC_USE_REF_TICK) {
-        return PWM_REF_TICK;
-    }
-    #endif
-    #if SOC_LEDC_SUPPORT_XTAL_CLOCK
-    else if (found_clk == LEDC_USE_XTAL_CLK) {
-        return PWM_XTAL_CLK;
-    }
-    #endif
-
-    return PWM_AUTO_CLK;
+    return found_clk;
 }
 
 #endif
+
+// Helper function to check the maximum allowed frequency regarding the clock source and SoC
+// return True if the frequency is supported.
+static bool check_freq(machine_pwm_obj_t *self, int freq) {
+
+    if (self->lightsleepenabled) {
+        if ((freq <= 0) || (freq > 8000000)) {
+            mp_raise_ValueError(MP_ERROR_TEXT("frequency must be from 1Hz to 8MHz"));
+        }
+    } else
+    if ((freq <= 0) || (freq > 40000000)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("frequency must be from 1Hz to 40MHz"));
+    }
+
+    return true;
+}
 
 // Find a free PWM channel, also spot if our pin is already mentioned.
 // Return channel_idx. Use CHANNEL_IDX_TO_MODE(channel_idx) and CHANNEL_IDX_TO_CHANNEL(channel_idx) to get mode and channel
