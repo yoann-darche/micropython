@@ -199,17 +199,8 @@ static void pwm_init(void) {
 static void pwm_deinit(int channel_idx) {
     // Valid channel?
     if ((channel_idx >= 0) && (channel_idx < PWM_CHANNEL_MAX)) {
-        // Clean up timer if necessary
-        int timer_idx = chans[channel_idx].timer_idx;
-        if (timer_idx != -1) {
-            if (!is_timer_in_use(channel_idx, timer_idx)) {
-                check_esp_err(ledc_timer_rst(TIMER_IDX_TO_MODE(timer_idx), TIMER_IDX_TO_TIMER(timer_idx)));
-                // Flag it unused
-                timers[chans[channel_idx].timer_idx].freq_hz = -1;
-                timers[chans[channel_idx].timer_idx].clk_cfg = LEDC_AUTO_CLK;
-            }
-        }
 
+        // Stop the channel
         int pin = chans[channel_idx].pin;
         if (pin != -1) {
             int mode = CHANNEL_IDX_TO_MODE(channel_idx);
@@ -237,8 +228,26 @@ static void pwm_deinit(int channel_idx) {
             }
         }
         chans[channel_idx].pin = -1;
-        chans[channel_idx].timer_idx = -1;
         chans[channel_idx].lightsleepenabled = false;
+
+        // Clean up timer if necessary
+        int timer_idx = chans[channel_idx].timer_idx;
+        if (timer_idx != -1) {
+            if (!is_timer_in_use(channel_idx, timer_idx)) {
+                // Pause the timer
+                check_esp_err(ledc_timer_pause(TIMER_IDX_TO_MODE(timer_idx), TIMER_IDX_TO_TIMER(timer_idx)));
+                // Set flag to deconfigure
+                timers[timer_idx].deconfigure = true;
+                // Flag it unused
+                timers[timer_idx].freq_hz = -1;
+                timers[timer_idx].clk_cfg = LEDC_AUTO_CLK;
+                // run deconfiguration
+                check_esp_err(ledc_timer_config(&timers[timer_idx]));
+            }
+        }
+
+        chans[channel_idx].timer_idx = -1;
+
     }
 }
 
@@ -291,6 +300,7 @@ static void set_freq(machine_pwm_obj_t *self, unsigned int freq, ledc_timer_conf
         timer->duty_resolution = res;
         timer->freq_hz = freq;
         timer->clk_cfg = led_src_clock;
+        timer->deconfigure = false;
 
         // Set frequency
         esp_err_t err = ledc_timer_config(timer);
@@ -491,34 +501,25 @@ static int find_clock_in_use() {
         }
     }
 
-    if (found_clk == LEDC_AUTO_CLK) {
-        return PWM_AUTO_CLK;
-    }
-    #if SOC_LEDC_SUPPORT_APB_CLOCK
-    else if (found_clk == LEDC_USE_APB_CLK) {
-        return PWM_APB_CLK;
-    }
-    #endif
-    else if (found_clk == LEDC_USE_RC_FAST_CLK) {
-        return PWM_RC_FAST_CLK;
-    }
-    #if SOC_LEDC_SUPPORT_REF_TICK
-    else if (found_clk == LEDC_USE_REF_TICK) {
-        return PWM_REF_TICK;
-    }
-    #endif
-    #if SOC_LEDC_SUPPORT_XTAL_CLOCK
-    else if (found_clk == LEDC_USE_XTAL_CLK) {
-        return PWM_XTAL_CLK;
-    }
-    #endif
-    #if SOC_LEDC_SUPPORT_PLL_DIV_CLOCK
-    else if (found_clk == LEDC_USE_PLL_DIV_CLK) {
-        return PWM_PLL_CLK;
-    }
-    #endif
+    return found_clk;
+}
 
-    return PWM_AUTO_CLK;
+#endif
+
+// Helper function to check the maximum allowed frequency regarding the clock source and SoC
+// return True if the frequency is supported.
+static bool check_freq(machine_pwm_obj_t *self, int freq) {
+
+    if (self->lightsleepenabled) {
+        if ((freq <= 0) || (freq > 8000000)) {
+            mp_raise_ValueError(MP_ERROR_TEXT("frequency must be from 1Hz to 8MHz"));
+        }
+    } else
+    if ((freq <= 0) || (freq > 40000000)) {
+        mp_raise_ValueError(MP_ERROR_TEXT("frequency must be from 1Hz to 40MHz"));
+    }
+
+    return true;
 }
 
 #endif
